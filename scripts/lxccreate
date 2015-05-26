@@ -1,0 +1,30 @@
+#! /bin/bash
+
+LXC_NAME=$1
+DIST="debian"
+RELEASE="wheezy"
+ARCH="amd64"
+FSSIZE="1G"
+FSTYPE="ext4"
+CONTAINERS_PATH="/home/hack4u/.local/share/lxc"
+VG_NAME="lxc"
+MAPPER_PATH="/dev/mapper"
+USER="hack4u"
+GROUP=$USER
+
+# Create the LV
+sudo lvcreate -L $FSSIZE $VG_NAME -p rw -n $LXC_NAME
+# Format the LV
+sudo mkfs.$FSTYPE $MAPPER_PATH/$VG_NAME-$LXC_NAME
+# Create mountpoint
+mkdir -p $CONTAINERS_PATH/$LXC_NAME
+# Mount the LV
+sudo mount -t $FSTYPE $MAPPER_PATH/$VG_NAME-$LXC_NAME $CONTAINERS_PATH/$LXC_NAME
+
+# Set permissions
+sudo chown $USER:$GROUP $CONTAINERS_PATH/$LXC_NAME{,"/lost+found"}
+sudo chmod 770 $CONTAINERS_PATH/$LXC_NAME
+# Create container
+lxc-create -t download -n $LXC_NAME -P $CONTAINERS_PATH -- -d $DIST -r $RELEASE -a $ARCH
+
+exit 0
