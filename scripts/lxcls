@@ -1,0 +1,5 @@
+#! /bin/bash
+
+CONTAINERS_PATH="/home/hack4u/.local/share/lxc"
+
+cd $CONTAINERS_PATH && ls -C -d */ | sed 's,/,,g'
