@@ -10,19 +10,22 @@ USER_MAPPED_ID="231072"
 GROUP=$USER
 
 # Check if LV is mounted
-if ! mount | grep $MAPPER_PATH/$LXC_NAME > /dev/null; then
+if ! mount | grep $MAPPER_PATH/$VG_NAME-$LXC_NAME > /dev/null; then
+	echo "Mouting LV"
 	sudo mount $MAPPER_PATH/$VG_NAME-$LXC_NAME $CONTAINERS_PATH/$LXC_NAME
 fi
 # Retrieve owner and group of mounted point
 owner=$(ls -ld $CONTAINERS_PATH/$LXC_NAME | awk '{ print $3 }')
 group=$(ls -ld $CONTAINERS_PATH/$LXC_NAME | awk '{ print $4 }')
 # Check if owner and group are ok
-if [ "$ower:$group" != "$USER_MAPPED_ID:$GROUP" ]; then
+if [ "$owner:$group" != "$USER_MAPPED_ID:$GROUP" ]; then
+	echo "Setting user:group"
 	sudo chown $USER_MAPPED_ID:$GROUP $CONTAINERS_PATH/$LXC_NAME
 fi
 
 # Check permissions
 if [ $(stat -c %A $CONTAINERS_PATH/$LXC_NAME) != "drwxrwx---" ]; then
+	echo "Setting permissions"
 	sudo chmod 770 $CONTAINERS_PATH/$LXC_NAME
 fi
 
