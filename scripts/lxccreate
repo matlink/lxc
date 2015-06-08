@@ -15,7 +15,7 @@ GROUP=$USER
 if [ "$#" -eq 2 ]; then
 	DIST=$2
 	if [ "$DIST"=="yuno" ]; then
-		$FSSIZE="3G";
+		FSSIZE="3G";
 	fi
 fi
 
