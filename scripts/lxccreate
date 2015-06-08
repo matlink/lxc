@@ -12,6 +12,14 @@ MAPPER_PATH="/dev/mapper"
 USER="hack4u"
 GROUP=$USER
 
+if [ "$#" -eq 2 ]; then
+	DIST=$2
+	if [ "$DIST"=="yuno" ]; then
+		$FSSIZE="3G";
+	fi
+fi
+
+
 # Create the LV
 sudo lvcreate -L $FSSIZE $VG_NAME -p rw -n $LXC_NAME
 # Format the LV
