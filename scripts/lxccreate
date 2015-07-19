@@ -14,11 +14,14 @@ GROUP=$USER
 
 if [ "$#" -eq 2 ]; then
 	DIST=$2
-	if [ "$DIST"=="yuno" ]; then
+	if [ "$DIST" == "yuno" ]; then
 		FSSIZE="3G";
+	elif [ "$DIST" == "ubuntu" ]; then
+		RELEASE="trusty";
+	elif [ "$DIST" == "centos" ]; then
+		RELEASE="6";
 	fi
 fi
-
 
 # Create the LV
 sudo lvcreate -L $FSSIZE $VG_NAME -p rw -n $LXC_NAME
@@ -32,6 +35,7 @@ sudo mount -t $FSTYPE $MAPPER_PATH/$VG_NAME-$LXC_NAME $CONTAINERS_PATH/$LXC_NAME
 # Set permissions
 sudo chown $USER:$GROUP $CONTAINERS_PATH/$LXC_NAME{,"/lost+found"}
 sudo chmod 770 $CONTAINERS_PATH/$LXC_NAME
+
 # Create container
 lxc-create -t download -n $LXC_NAME -P $CONTAINERS_PATH -- -d $DIST -r $RELEASE -a $ARCH
 
