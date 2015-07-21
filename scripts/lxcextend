@@ -1,0 +1,9 @@
+#! /bin/bash
+
+LXC_NAME=$1
+EXTEND_SIZE=$2
+VG_NAME="lxc"
+MAPPER_PATH="/dev/mapper"
+
+sudo lvextend "$VG_NAME/$LXC_NAME" -L +$EXTEND_SIZE
+sudo resize2fs "$MAPPER_PATH/$VG_NAME-$LXC_NAME"

@@ -1,0 +1,72 @@
+#! /bin/bash
+# Transform a newly created debian lxc container to a GUI and pulseaudio capable one
+LXC_NAME=$1
+CONTAINERS_PATH="/home/hack4u/.local/share/lxc"
+CONTAINER="$CONTAINERS_PATH/$LXC_NAME"
+GUIUSER="guiuser"
+
+lxc-start -n $LXC_NAME -d 
+lxc-attach -n $LXC_NAME -- adduser --disabled-password --gecos "" $GUIUSER
+
+sed -i 's/^lxc\.id_map/#lxc\.id_map/g' "$CONTAINER/config"
+
+cat >> "$CONTAINER/config" <<EOF 
+
+
+# GUI and sound settings
+lxc.id_map = u 0 231072 1000
+lxc.id_map = g 0 231072 1000
+lxc.id_map = u 1000 1000 1
+lxc.id_map = g 1000 1000 1
+lxc.id_map = u 1001 232072 64535
+lxc.id_map = g 1001 232072 64535
+lxc.mount.entry = /dev/dri dev/dri none bind,optional,create=dir
+lxc.mount.entry = /dev/snd dev/snd none bind,optional,create=dir
+lxc.mount.entry = /tmp/.X11-unix tmp/.X11-unix none bind,optional,create=dir
+
+lxc.hook.pre-start = /home/hack4u/.local/share/lxc/.global/setup-pulse.sh $GUIUSER
+EOF
+
+lxc-attach -n $LXC_NAME -- apt-get update -qq 
+lxc-attach -n $LXC_NAME -- apt-get install -y sudo x11-common x11-common x11-xserver-utils
+lxc-attach -n $LXC_NAME -- sudo -u $GUIUSER mkdir -p /home/$GUIUSER/.pulse/
+echo "export DISPLAY=:0" | lxc-attach -n $LXC_NAME -- sudo -u $GUIUSER tee /home/$GUIUSER/.bashrc
+echo "disable-shm=yes" | lxc-attach -n $LXC_NAME -- sudo -u $GUIUSER tee /home/$GUIUSER/.pulse/client.conf
+lxc-stop -n $LXC_NAME
+sudo chown -R 1000:1000 "$CONTAINER/rootfs/home/$GUIUSER"
+
+cat > "$CONTAINERS_PATH/.launchers/$LXC_NAME.sh" <<EOF
+#!/bin/sh
+CONTAINER=$LXC_NAME
+CMD_LINE="$LXC_NAME"
+
+STARTED=false
+
+if ! lxc-wait -n \$CONTAINER -s RUNNING -t 0; then
+    lxc-start -n \$CONTAINER -d
+    lxc-wait -n \$CONTAINER -s RUNNING
+    STARTED=true
+fi
+
+PULSE_SOCKET=/home/$GUIUSER/.pulse_socket
+
+lxc-attach --clear-env -n \$CONTAINER -- sudo -u $GUIUSER -i \
+    env DISPLAY=\$DISPLAY PULSE_SERVER=\$PULSE_SOCKET \$CMD_LINE
+
+if [ "$STARTED" = "true" ]; then
+    lxc-stop -n \$CONTAINER -t 10
+fi
+EOF
+
+chmod +x "$CONTAINERS_PATH/.launchers/$LXC_NAME.sh"
+
+cat > "$CONTAINER/$LXC_NAME-lxc.desktop" <<EOF
+[Desktop Entry]
+Version=1.0
+Name=$LXC_NAME LXC
+Comment=Launch $LXC_NAME in LXC container
+Exec=/home/hack4u/.local/share/lxc/.launchers/$LXC_NAME.sh
+Icon=
+Type=Application
+Categories=
+EOF

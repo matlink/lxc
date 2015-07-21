@@ -1,0 +1,13 @@
+#! /bin/bash
+
+VG_NAME="lxc"
+MAPPER_PATH="/dev/mapper"
+
+# For each VM
+for LXC_NAME in $(lxcls); do
+	# Check if LV is mounted
+	if mount | grep $MAPPER_PATH/$VG_NAME-$LXC_NAME > /dev/null; then
+		echo "Unmounting "$LXC_NAME
+		sudo umount $MAPPER_PATH/$VG_NAME-$LXC_NAME
+	fi
+done
