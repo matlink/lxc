@@ -29,7 +29,7 @@ for container in lxc.list_containers(as_object=True):
 
     # Run the updates
     container.attach_wait(lxc.attach_run_command,
-                          ["apt-get", "update"])
+                          ["apt-get", "update", "-qq"])
     container.attach_wait(lxc.attach_run_command,
                           ["apt-get", "dist-upgrade", "-y"])
 

@@ -37,6 +37,6 @@ sudo chown $USER:$GROUP $CONTAINERS_PATH/$LXC_NAME{,"/lost+found"}
 sudo chmod 770 $CONTAINERS_PATH/$LXC_NAME
 
 # Create container
-lxc-create -t download -n $LXC_NAME -P $CONTAINERS_PATH -- -d $DIST -r $RELEASE -a $ARCH
+lxc-create -t custom -n $LXC_NAME -P $CONTAINERS_PATH -- -d $DIST -r $RELEASE -a $ARCH
 
 exit 0
