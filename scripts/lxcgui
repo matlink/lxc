@@ -3,7 +3,8 @@
 LXC_NAME=$1
 CONTAINERS_PATH="/home/hack4u/.local/share/lxc"
 CONTAINER="$CONTAINERS_PATH/$LXC_NAME"
-GUIUSER="guiuser"
+GUIUSER="ubuntu"
+PULSE_SERVER=10.0.3.1
 
 lxc-start -n $LXC_NAME -d 
 lxc-attach -n $LXC_NAME -- adduser --disabled-password --gecos "" $GUIUSER
@@ -20,18 +21,19 @@ lxc.id_map = u 1000 1000 1
 lxc.id_map = g 1000 1000 1
 lxc.id_map = u 1001 232072 64535
 lxc.id_map = g 1001 232072 64535
-lxc.mount.entry = /dev/dri dev/dri none bind,optional,create=dir
-lxc.mount.entry = /dev/snd dev/snd none bind,optional,create=dir
 lxc.mount.entry = /tmp/.X11-unix tmp/.X11-unix none bind,optional,create=dir
 
-lxc.hook.pre-start = /home/hack4u/.local/share/lxc/.global/setup-pulse.sh $GUIUSER
 EOF
 
-lxc-attach -n $LXC_NAME -- apt-get update -qq 
-lxc-attach -n $LXC_NAME -- apt-get install -y sudo x11-common x11-common x11-xserver-utils
+#sleep while container is booting
+sleep 5
+echo "quietly updating ..."
+lxc-attach -n $LXC_NAME -- apt-get update
+lxc-attach -n $LXC_NAME -- apt-get install -y sudo x11-common x11-common x11-xserver-utils pulseaudio
 lxc-attach -n $LXC_NAME -- sudo -u $GUIUSER mkdir -p /home/$GUIUSER/.pulse/
-echo "export DISPLAY=:0" | lxc-attach -n $LXC_NAME -- sudo -u $GUIUSER tee /home/$GUIUSER/.bashrc
-echo "disable-shm=yes" | lxc-attach -n $LXC_NAME -- sudo -u $GUIUSER tee /home/$GUIUSER/.pulse/client.conf
+echo "export DISPLAY=:0" | lxc-attach -n $LXC_NAME -- sudo -u $GUIUSER tee -a /home/$GUIUSER/.bashrc
+echo "export PULSE_SERVER=10.0.3.1" | lxc-attach -n $LXC_NAME -- sudo -u $GUIUSER tee -a /home/$GUIUSER/.bashrc
+echo "disable-shm=yes" | lxc-attach -n $LXC_NAME -- sudo -u $GUIUSER tee -a /home/$GUIUSER/.pulse/client.conf
 lxc-stop -n $LXC_NAME
 sudo chown -R 1000:1000 "$CONTAINER/rootfs/home/$GUIUSER"
 
@@ -39,6 +41,7 @@ cat > "$CONTAINERS_PATH/.launchers/$LXC_NAME.sh" <<EOF
 #!/bin/sh
 CONTAINER=$LXC_NAME
 CMD_LINE="$LXC_NAME"
+
 
 STARTED=false
 
@@ -48,10 +51,8 @@ if ! lxc-wait -n \$CONTAINER -s RUNNING -t 0; then
     STARTED=true
 fi
 
-PULSE_SOCKET=/home/$GUIUSER/.pulse_socket
-
 lxc-attach --clear-env -n \$CONTAINER -- sudo -u $GUIUSER -i \
-    env DISPLAY=\$DISPLAY PULSE_SERVER=\$PULSE_SOCKET \$CMD_LINE
+	env DISPLAY=\$DISPLAY PULSE_SERVER=$PULSE_SERVER \$CMD_LINE
 
 if [ "$STARTED" = "true" ]; then
     lxc-stop -n \$CONTAINER -t 10

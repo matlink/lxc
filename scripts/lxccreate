@@ -39,4 +39,9 @@ sudo chmod 770 $CONTAINERS_PATH/$LXC_NAME
 # Create container
 lxc-create -t custom -n $LXC_NAME -P $CONTAINERS_PATH -- -d $DIST -r $RELEASE -a $ARCH
 
+cat >> "$CONTAINER/config" <<EOF 
+
+lxc.mount.entry = /var/cache/apt/archives var/cache/apt/archives none bind 0 0
+EOF
+
 exit 0

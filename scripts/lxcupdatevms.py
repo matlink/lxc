@@ -1,6 +1,5 @@
 #! /usr/bin/python3
-import lxc
-import sys
+import lxc, sys, threading, time
 
 HEADER = '\033[95m'
 OKBLUE = '\033[94m'
@@ -11,21 +10,24 @@ ENDC = '\033[0m'
 BOLD = '\033[1m'
 UNDERLINE = '\033[4m'
 
-for container in lxc.list_containers(as_object=True):
+updating = list()
+to_update = list(lxc.list_containers(as_object=True))
+timing = dict()
+def update(container):
     print(OKGREEN+container.name+ENDC)
     # Start the container (if not started)
     started=False
     if not container.running:
         if not container.start():
-            continue
+            return
         started=True
 
     if not container.state == "RUNNING":
-        continue
+        return
 
     # Wait for connectivity
     if not container.get_ips(timeout=30):
-        continue
+        return
 
     # Run the updates
     container.attach_wait(lxc.attach_run_command,
@@ -37,3 +39,21 @@ for container in lxc.list_containers(as_object=True):
     if started:
         if not container.shutdown(30):
             container.stop()
+    updating.remove(container)
+
+while len(to_update) > 0:
+    if len(updating) <= 5:
+        container = to_update.pop(0)
+        updating.append(container)
+        t = threading.Thread(target=update, args=(container,))
+        t.start()
+        timing[container.name] = time.time()
+    else:
+        for container in updating:
+            current_time = time.time()
+            if timing[container.name]-current_time >= 90:
+                print(FAIL,'cannot update',container.name,ENDC)
+                container.stop()
+                updating.remove(container)
+        print(OKBLUE,'updating ...', [container.name for container in updating],ENDC)
+        time.sleep(5)
