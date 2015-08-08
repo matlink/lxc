@@ -40,7 +40,7 @@ def update(container):
     if started:
         if not container.shutdown(30):
             container.stop()
-    if threaded:
+    if enable_threads:
         updating.remove(container)
 
 def serial():
