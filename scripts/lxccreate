@@ -2,7 +2,7 @@
 
 LXC_NAME=$1
 DIST="debian"
-RELEASE="wheezy"
+RELEASE="jessie"
 ARCH="amd64"
 FSSIZE="1G"
 FSTYPE="ext4"
@@ -12,7 +12,7 @@ MAPPER_PATH="/dev/mapper"
 USER="hack4u"
 GROUP=$USER
 
-if [ "$#" -eq 2 ]; then
+if [ "$#" -ge 2 ]; then
 	DIST=$2
 	if [ "$DIST" == "yuno" ]; then
 		FSSIZE="3G";
@@ -20,6 +20,19 @@ if [ "$#" -eq 2 ]; then
 		RELEASE="trusty";
 	elif [ "$DIST" == "centos" ]; then
 		RELEASE="6";
+	elif [ "$DIST" == "wheezy" ]; then
+		DIST="debian";
+		RELEASE="wheezy";
+	fi
+fi
+
+if [ "$#" -ge 3 ]; then
+	ARCH=$3
+	if [ "$ARCH" == "i386" ]; then
+		ARCH="i386";
+	else 
+		echo "Error, unknown arch"
+		exit 1
 	fi
 fi
 
