@@ -1,0 +1,26 @@
+#! /bin/bash
+
+LXC_NAME=$1
+LXC_NEW_NAME=$2
+CONTAINERS_PATH="/home/hack4u/.local/share/lxc"
+VG_NAME="lxc"
+MAPPER_PATH="/dev/mapper"
+
+# Check if LV exists
+[ -e "$MAPPER_PATH/$VG_NAME-$LXC_NAME" ] || (echo "LV does not exist" && exit 1)
+# Check if container's root exists
+[ -d "$CONTAINERS_PATH/$LXC_NAME" ] || (echo "Container's path does not exist" && exit 2)
+
+echo "Unmounting ..."
+sudo umount $MAPPER_PATH/$VG_NAME-$LXC_NAME
+
+echo "Renaming ..."
+# Rename the LV
+sudo lvrename $VG_NAME $LXC_NAME $LXC_NEW_NAME
+
+# Rename the path
+mv $CONTAINERS_PATH/$LXC_NAME $CONTAINERS_PATH/$LXC_NEW_NAME
+lxcmount $LXC_NEW_NAME
+sed -i "s,$LXC_NAME,$LXC_NEW_NAME,g" $CONTAINERS_PATH/$LXC_NEW_NAME/config
+
+exit 0
