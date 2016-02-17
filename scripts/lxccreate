@@ -23,6 +23,9 @@ if [ "$#" -ge 2 ]; then
 	elif [ "$DIST" == "wheezy" ]; then
 		DIST="debian";
 		RELEASE="wheezy";
+	else
+		echo "Distribution not supported"
+		exit 1
 	fi
 fi
 
@@ -56,5 +59,7 @@ cat >> "$CONTAINERS_PATH/$LXC_NAME/config" <<EOF
 
 lxc.mount.entry = /home/hack4u/var/cache/apt/archives var/cache/apt/archives none bind 0 0
 EOF
+
+echo "root:root" | sudo chroot "$CONTAINERS_PATH/$LXC_NAME/rootfs/" chpasswd
 
 exit 0
