@@ -1,0 +1,6 @@
+#!/bin/bash -x
+set -e
+
+cont=$1
+
+lxc exec $cont -- bash -c "echo 'Acquire::http::Proxy \"http://apt-cacher.lxd:3142\";' > /etc/apt/apt.conf.d/01acng"
