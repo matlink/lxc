@@ -3,14 +3,15 @@ set -e
 
 cont=$1
 
-lxc exec $cont -- bash -c "echo 'Acquire::http::Proxy \"http://apt-cacher.lxd:3142\";' > /etc/apt/apt.conf.d/01acng"
 lxc exec $cont -- apt update
-lxc exec $cont -- apt install -y x11-apps mesa-utils alsa-utils pulseaudio
-lxc exec $cont -- bash -c "echo 'export PULSE_SERVER=10.11.161.1' >> /home/ubuntu/.profile"
-lxc exec $cont -- bash -c "echo 'export DISPLAY=:0' >> /home/ubuntu/.profile"
+lxc exec $cont -- apt install -y x11-apps mesa-utils alsa-utils
+lxc exec $cont -- bash -c "echo 'export DISPLAY=:0' >> /home/ubuntu/.bashrc"
 
-lxc config set $cont raw.idmap "both $UID 1000"
-lxc restart $cont
+echo -e "uid $(id -u ${USER}) 1000\ngid $(id -g ${USER}) 1000" | lxc config set $cont raw.idmap -
+lxc stop $cont
 lxc config device add $cont X0 disk path=/tmp/.X11-unix/X0 source=/tmp/.X11-unix/X0
 lxc config device add $cont Xauthority disk path=/home/ubuntu/.Xauthority source=/home/${USER}/.Xauthority
 lxc config device add $cont mygpu gpu
+lxc config device set $cont mygpu uid 1000
+lxc config device set $cont mygpu gid 1000
+lxc start $cont
