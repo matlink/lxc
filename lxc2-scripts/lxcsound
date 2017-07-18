@@ -1,0 +1,11 @@
+#!/bin/bash -x
+set -e
+
+cont=$1
+
+lxc exec $cont -- apt update
+lxc exec $cont -- apt install -y alsa-utils pulseaudio
+lxc exec $cont -- sudo -iu ubuntu bash -c "mkdir -p ~/.config/pulse/"
+lxc exec $cont -- bash -c "echo 'export PULSE_SERVER=10.72.172.1' >> /home/ubuntu/.bashrc"
+lxc exec $cont -- bash -c "echo 'export PULSE_COOKIE=~/.config/pulse/cookie' >> /home/ubuntu/.bashrc"
+lxc config device add $cont PACookie disk path=/home/ubuntu/.config/pulse/cookie source=/home/${USER}/.config/pulse/cookie
