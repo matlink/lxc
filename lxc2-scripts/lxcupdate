@@ -1,0 +1,116 @@
+#! /usr/bin/python3
+
+import os
+import sys
+import time
+import signal
+import subprocess
+import multiprocessing as mp
+
+_apt = "/usr/bin/apt"
+_lxc = "/usr/bin/lxc"
+_awk = "/usr/bin/awk"
+
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+def signal_handler(signal, frame):
+    global CONTINUE
+    print("SIGINT: will stop at next container")
+    CONTINUE = False
+
+def preexec_function():
+    # Ignore the SIGINT signal by setting the handler to the standard
+    # signal handler SIG_IGN.
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+def has_ip(container):
+    lxc_proc = subprocess.Popen(
+            [_lxc, 'list', '-c', 'n4'],
+            stdout=subprocess.PIPE,
+            preexec_fn = preexec_function
+            )
+    status = [  line for line in lxc_proc.communicate()[0].decode().split('\n')
+            if line.startswith('| %s' % container) ][0]
+    ip = status.split('|')[2].strip(' ')
+    return len(ip) != 0
+
+def update_cont(container):
+    commands = [
+        '%s exec %s -- %s -qq update'          % (_lxc, container, _apt),
+        '%s exec %s -- %s -qq -y dist-upgrade' % (_lxc, container, _apt),
+        '%s exec %s -- %s -qq -y clean'        % (_lxc, container, _apt),
+        '%s exec %s -- %s -qq -y autoclean'    % (_lxc, container, _apt),
+    ]
+    output = ( "[%s]" % container , list() )
+    for command in commands:
+#       print("%s[%s] executing %s%s" % (bcolors.WARNING, container, command, bcolors.ENDC))
+        output[1].append("%sexecuting %s%s" % (bcolors.WARNING, command, bcolors.ENDC))
+        proc = subprocess.Popen( command.split(), preexec_fn = preexec_function, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out, errs = proc.communicate()
+        for line in out.decode().split('\n'):
+            if len(line) == 0: continue
+#           print("[%s] %s" % (container, line))
+            output[1].append("%s" % line)
+        proc.terminate()
+        del proc
+        time.sleep(0.5)
+        return output
+
+def one_job(cont_status):
+    container, running = cont_status
+    output = list()
+    if not running:
+        output.append("%sis not running, starting it ...%s" % (bcolors.WARNING, bcolors.ENDC))
+        proc = subprocess.Popen([_lxc, 'start', container], stdout=subprocess.PIPE)
+        proc.communicate()
+        proc.wait()
+        proc.terminate()
+        output.append("%sWaiting for IP ...%s" % (bcolors.WARNING, bcolors.ENDC))
+        while not has_ip(container):
+            time.sleep(1)
+    output += update_cont(container)[1]
+    if not running:
+        output.append("%sStopping as it was before ...%s" % (bcolors.WARNING, bcolors.ENDC))
+        proc = subprocess.Popen([_lxc, 'stop', container], stdout=subprocess.PIPE)
+        proc.communicate()
+        proc.wait()
+        proc.terminate()
+    return container, output
+
+
+
+def main():
+    global CONTINUE
+    CONTINUE = True
+    containers = dict()
+
+    lxc_proc = subprocess.Popen([_lxc, 'list', '-c', 'ns'], stdout=subprocess.PIPE)
+    lxc_status, lxc_error = lxc_proc.communicate()
+    lxc_proc.terminate()
+
+    for line in lxc_status.decode().split('\n'):
+        name_state = line.split('|')
+        if len(name_state) == 1:
+            continue
+        if name_state[1] == '    NAME    ':
+            continue
+        name  = name_state[1].strip(' ')
+        state = name_state[2].strip(' ') == 'RUNNING'
+        containers[name] = state
+
+    pool = mp.Pool(4)
+    for container, output in pool.imap_unordered(one_job, containers.items(), 1):
+        for log in output:
+            print("[%s] %s" % (container, log))
+
+if __name__ == '__main__':
+    signal.signal(signal.SIGINT, signal_handler)
+    main()
