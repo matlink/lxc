@@ -62,7 +62,7 @@ def update_cont(container):
         proc.terminate()
         del proc
         time.sleep(0.5)
-        return output
+    return output
 
 def one_job(cont_status):
     container, running = cont_status
