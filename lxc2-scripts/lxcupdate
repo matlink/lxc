@@ -96,12 +96,10 @@ def main():
     lxc_status, lxc_error = lxc_proc.communicate()
     lxc_proc.terminate()
 
-    for line in lxc_status.decode().split('\n'):
+    for line in lxc_status.decode().split('\n')[3:-1]:
+        if line.startswith('+'):
+            continue
         name_state = line.split('|')
-        if len(name_state) == 1:
-            continue
-        if name_state[1] == '    NAME    ':
-            continue
         name  = name_state[1].strip(' ')
         state = name_state[2].strip(' ') == 'RUNNING'
         containers[name] = state
