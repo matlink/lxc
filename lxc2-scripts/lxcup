@@ -1,0 +1,38 @@
+#! /usr/bin/env python3
+import sys
+import time
+from pylxd import Client
+client = Client()
+
+RUNNING=103
+STOPPED=102
+
+def update(c):
+	outs = list()
+	for cmd in ['apt-get -qq update',
+				'apt-get -qq dist-upgrade -y',
+				'apt-get -qq autoremove -y',
+				'apt-get -qq clean -y',
+				]:
+		code, stdout, stderr = c.execute(cmd.split())
+		outs.append((code, stdout, stderr))
+	return outs
+
+for c in client.containers.all():
+	print("[%s] Updating ..." % c.name)
+	init_status = c.status_code
+	if init_status == STOPPED:
+		c.start()
+	while c.status_code != RUNNING:
+		c.sync()
+		time.sleep(1)
+	outs = update(c)
+	for code, stdout, stderr in outs:
+		for line in stdout.split('\n'):
+			if len(line) == 0: continue
+			print("[%s:%d] %s" %(c.name, code, line), file=sys.stdout)
+		for line in stderr.split('\n'):
+			if len(line) == 0: continue
+			print("[%s:%d] %s" %(c.name, code, line), file=sys.stderr)
+	if init_status == STOPPED:
+		c.stop()
