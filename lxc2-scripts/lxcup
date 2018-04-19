@@ -18,21 +18,46 @@ def update(c):
 		outs.append((code, stdout, stderr))
 	return outs
 
-for c in client.containers.all():
-	print("[%s] Updating ..." % c.name)
+def is_network_up(c):
+	if c.state().network is None:
+		return False
+	eth0 = c.state().network['eth0']
+	if eth0['state'] != 'up':
+		return False
+	for addr in eth0['addresses']:
+		if addr['family'] == 'inet':
+			ipv4 = addr['address']
+			return True
+	return False
+
+def start_if_needed(c):
 	init_status = c.status_code
 	if init_status == STOPPED:
 		c.start()
-	while c.status_code != RUNNING:
+	while (c.status_code != RUNNING
+		and not is_network_up(c)):
 		c.sync()
 		time.sleep(1)
-	outs = update(c)
-	for code, stdout, stderr in outs:
-		for line in stdout.split('\n'):
-			if len(line) == 0: continue
-			print("[%s:%d] %s" %(c.name, code, line), file=sys.stdout)
-		for line in stderr.split('\n'):
-			if len(line) == 0: continue
-			print("[%s:%d] %s" %(c.name, code, line), file=sys.stderr)
+	return init_status
+
+def stop_if_needed(c, init_status):
 	if init_status == STOPPED:
 		c.stop()
+
+def main():
+	for c in client.containers.all():
+		print("[%s] Updating ..." % c.name)
+		init_status = start_if_needed(c)
+		outs = update(c)
+		for code, stdout, stderr in outs:
+			for line in stdout.split('\n'):
+				if len(line) == 0: continue
+				print("[%s:%d] %s" %(c.name, code, line), file=sys.stdout)
+			for line in stderr.split('\n'):
+				if len(line) == 0: continue
+				print("[%s:%d] %s" %(c.name, code, line), file=sys.stderr)
+		stop_if_needed(c, init_status)
+
+
+if __name__ == '__main__':
+	main()
